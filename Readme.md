@@ -1,4 +1,5 @@
 GettingCleaningData-Week-4-Assignment
+
 within this repository is my answer to week 4 programming assignment of getting and cleaning data
 1)First, download and unzip the data file into your R working directory.
 2)Second, download the R source code into your R working directory.
