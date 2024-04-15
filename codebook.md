@@ -1,11 +1,15 @@
 Title:	
 Getting and cleaning data week 4 Assignment
+
 Author:
 Ananya Sharma
+
 Date:
 15th April 2024 (Monday)
+
 Output:
 tidy_data.txt
+
 Code Book
 The final summary tidy dataset "tidydata.txt" contains the average of each variable for each activity and each subject from the Human Activity Recognition Using Smartphones Data Set
 
