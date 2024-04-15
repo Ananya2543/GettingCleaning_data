@@ -1,92 +1,53 @@
-# Below is what this script does
-# 1. Merges the training and the test sets to create one data set.
-# 2. Extracts only the measurements on the mean and standard deviation for each measurement.
-# 3. Uses descriptive activity names to name the activities in the data set
-# 4. Appropriately labels the data set with descriptive variable names.
-# 5. From the data set in step 4, creates a second, independent tidy data set with the average
-# of each variable for each activity and each subject.
+# load libraries
+library(dplyr) 
+setwd("UCI HAR Dataset")
 
-# load packages data.table and reshape2
-if (!require("pacman")) {
-    install.packages("pacman")
+#defining x and y training sets
+x_train   <- read.table("./train/X_train.txt")
+y_train   <- read.table("./train/Y_train.txt") 
+sub_train <- read.table("./train/subject_train.txt")
+
+# read test data 
+x_test   <- read.table("./test/X_test.txt")
+y_test   <- read.table("./test/Y_test.txt") 
+sub_test <- read.table("./test/subject_test.txt")
+
+# read features 
+features <- read.table("./features.txt") 
+
+# read activity labels 
+activity_labels <- read.table("./activity_labels.txt") 
+
+# merging the x, y and sub data 
+x_total   <- rbind(x_train, x_test)
+y_total   <- rbind(y_train, y_test) 
+sub_total <- rbind(sub_train, sub_test) 
+
+# Filtering to only keep measurements for mean and sd 
+sel_features <- variable_names[grep(".*mean\\(\\)|std\\(\\)", features[,2], ignore.case = FALSE),]
+x_total <- x_total[,sel_features[,1]]
+
+# setting the new names for columns
+colnames(x_total) <- sel_features[,2]
+colnames(y_total) <- "activity"
+colnames(sub_total) <- "subject"
+
+# merging final data
+total <- cbind(sub_total, y_total, x_total)
+
+# converting activities & subjects into factors 
+total$activity <- factor(total$activity, levels = activity_labels[,1], labels = activity_labels[,2]) 
+total$subject  <- as.factor(total$subject) 
+
+# creating a summarized independent tidy dataset from final dataset 
+# contains (average of each variable for each activity and each subject) 
+total_mean <- total %>% group_by(activity, subject) %>% summarize_all(funs(mean)) 
+
+# making a new table with summary dataset
+setwd("..")
+if (!file.exists("tidy_table.txt")){
+  file.create("tidy_table.txt")
+  write.table(total_mean, file = "tidy", row.names = FALSE, col.names = TRUE)
+  }else {
+  write.table(total_mean, file = , row.names = FALSE, col.names = TRUE) 
 }
-pacman::p_load(data.table, reshape2, gsubfn)
-
-# get data from zip file
-path <- getwd()
-url <- "https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip"
-download.file(url, file.path(path, "data.zip"))
-unzip(zipfile = "data.zip")
-
-# load activity_labels and features
-activityLabels <- fread(
-    file.path(path, "UCI HAR Dataset/activity_labels.txt"),
-    col.names = c("classLabels", "activityNames")
-)
-
-features <-fread(
-        file.path(path, "/UCI HAR Dataset/features.txt"),
-        col.names = c("index", "featureNames")
-    )
-
-# extracting mean and std from features
-featuresNeeded <- grep("(mean|std)\\(\\)", features[, featureNames])
-measurements <- features[featuresNeeded, featureNames]
-measurements <- gsubfn(
-    "(^t|^f|Acc|Gyro|Mag|BodyBody|\\(\\))",
-    list(
-        "t" = "Time",
-        "f" = "Frequency",
-        "Acc" = "Accelerometer",
-        "Gyro" = "Gyroscope",
-        "Mag" = "Magnitude",
-        "BodyBody" = "Body",
-        "()" = ""
-    ),
-    measurements
-)
-# load train data
-## read in train, filtering based on features needed, using with=False to retain data.frame class
-train <- fread(file.path(path, "/UCI HAR Dataset/train/X_train.txt"))[, featuresNeeded, with = FALSE]
-setnames(train, colnames(train), measurements) # change column name based on measurement
-
-activityTrain <-
-    fread(file.path(path, "/UCI HAR Dataset/train/y_train.txt"),
-          col.names = "Activity")
-subjectTrain <-
-    fread(file.path(path, "/UCI HAR Dataset/train/subject_train.txt"),
-          col.names = "SubjectNo.")
-
-train <- cbind(activityTrain, subjectTrain, train) # bind all columns together
-
-# load test data
-test <- fread(file.path(path, "/UCI HAR Dataset/test/X_test.txt"))[, featuresNeeded, with = FALSE]
-setnames(test, colnames(test), measurements)
-
-activityTest <-
-    fread(file.path(path, "/UCI HAR Dataset/test/y_test.txt"),
-          col.names = "Activity")
-subjectTest <-
-    fread(file.path(path, "/UCI HAR Dataset/test/subject_test.txt"),
-          col.names = "SubjectNo.")
-
-test <- cbind(activityTest, subjectTest, test) 
-
-# merge test and train by rows
-testTrain <- rbind(train, test)
-
-# factor Activity column based on activity labels
-# use factor() to set own levels and labels
-testTrain[["Activity"]] <- factor(testTrain[, Activity]
-                                  , levels = activityLabels[["classLabels"]]
-                                  , labels = activityLabels[["activityNames"]]
-                                  )
-# as.factor() to create turn subject numbers into factors
-testTrain[["SubjectNo."]] <- as.factor(testTrain[, SubjectNo.])
-
-# melt then cast the data table
-testTrain <- melt.data.table(testTrain, id=c("SubjectNo.", "Activity")) # melt down to variable & value
-testTrain <- dcast(testTrain, SubjectNo. + Activity ~ variable, mean) # average of SubjectNo & Activity
-
-# write final tidy data into new file
-fwrite(testTrain, file="tidyData.txt")
